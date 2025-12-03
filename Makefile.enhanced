@@ -1,0 +1,132 @@
+# GPU音乐播放器 - 增强版 (带GPU检测)
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -pthread
+INCLUDES = -I./include -I./src
+
+# 检测Vulkan支持
+VULKAN_AVAILABLE := $(shell pkg-config --exists vulkan 2>/dev/null && echo yes || echo no)
+
+ifeq ($(VULKAN_AVAILABLE),yes)
+    VULKAN_CFLAGS := $(shell pkg-config --cflags vulkan 2>/dev/null)
+    VULKAN_LIBS := $(shell pkg-config --libs vulkan 2>/dev/null)
+    CXXFLAGS += $(VULKAN_CFLAGS) -DHAS_VULKAN
+    ENABLE_VULKAN = yes
+else
+    # 检查系统头文件
+    ifneq (,$(wildcard /usr/include/vulkan/vulkan.h))
+        ENABLE_VULKAN = yes
+        VULKAN_LIBS = -lvulkan
+    else ifneq (,$(wildcard /usr/local/include/vulkan/vulkan.h))
+        ENABLE_VULKAN = yes
+        INCLUDES += -I/usr/local/include
+        VULKAN_LIBS = -lvulkan
+    else
+        ENABLE_VULKAN = no
+    endif
+endif
+
+TARGET = gpu_player_enhanced
+SOURCES = src/main_with_detection.cpp src/gpu/VulkanDetector.cpp
+
+.PHONY: all clean run detect help gpu-info
+
+# 默认目标
+all: show-config $(TARGET)
+
+# 显示配置
+show-config:
+	@echo "=========================================="
+	@echo "GPU音乐播放器 - 增强版构建配置"
+	@echo "=========================================="
+	@echo "C++编译器: $(CXX)"
+	@echo "C++标准: C++17"
+	@echo "构建类型: Release"
+ifeq ($(ENABLE_VULKAN),yes)
+	@echo "Vulkan支持: ✅ 已启用"
+	@echo "Vulkan标志: $(VULKAN_CFLAGS)"
+	@echo "Vulkan库: $(VULKAN_LIBS)"
+else
+	@echo "Vulkan支持: ❌ 未启用"
+	@echo "提示: 安装 libvulkan-dev 以启用Vulkan支持"
+endif
+	@echo "=========================================="
+	@echo ""
+
+# 构建主程序
+$(TARGET): $(SOURCES)
+	@echo "构建GPU音乐播放器 (增强版)..."
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SOURCES) -o $(TARGET)
+	@echo "✅ 构建完成: $(TARGET)"
+
+# 运行程序
+run: $(TARGET)
+	@echo "运行GPU音乐播放器 (增强版)..."
+	./$(TARGET)
+
+# GPU检测
+detect: $(TARGET)
+	@echo "🔍 运行GPU检测..."
+	@echo "=========================================="
+	@echo ""
+	./$(TARGET) --gpu-info 2>/dev/null || echo "在程序内使用 'gpu' 命令查看GPU信息"
+
+# 显示GPU信息
+gpu-info: $(TARGET)
+	@echo "🔍 GPU信息检测:" 
+	@echo "=========================================="
+	@if [ -f $(TARGET) ]; then \
+		echo "运行独立GPU检测..."; \
+		GPUDetector::PrintGPUReport 2>/dev/null || echo "使用 ./$(TARGET) 然后输入 'gpu' 命令"; \
+	else \
+		echo "请先运行 'make' 构建程序"; \
+	fi
+
+# 清理
+clean:
+	@echo "清理构建文件..."
+	rm -f $(TARGET)
+	rm -rf build/
+	@echo "✅ 清理完成"
+
+# 帮助
+help:
+	@echo "GPU音乐播放器 - 增强版构建系统"
+	@echo "=========================================="
+	@echo ""
+	@echo "🎯 可用目标:"
+	@echo "  make         - 构建增强版播放器"
+	@echo "  make run     - 构建并运行播放器"
+	@echo "  make detect  - 运行GPU检测"
+	@echo "  make clean   - 清理构建文件"
+	@echo "  make help    - 显示帮助"
+	@echo ""
+	@echo "🚀 使用示例:"
+	@echo "  make         # 构建程序"
+	@echo "  ./$(TARGET)  # 运行播放器"
+	@echo "  > gpu        # 在程序中查看GPU信息"
+	@echo "  > play music.mp3  # 播放音频文件"
+	@echo ""
+	@echo "📋 程序特性:"
+	@echo "  ✅ GPU后端自动检测"
+	@echo "  ✅ Vulkan支持检测"
+	@echo "  ✅ 实时播放控制"
+	@echo "  ✅ 性能统计"
+	@echo "  ✅ 详细的GPU信息展示"
+	@if [ "$(ENABLE_VULKAN)" = "yes" ]; then \
+		echo "  ✅ Vulkan GPU加速支持"; \
+	else \
+		echo "  ⚠️  Vulkan支持未启用 (需要 libvulkan-dev)"; \
+	fi
+	@echo "=========================================="
+
+# 开发模式（带调试信息）
+debug: CXXFLAGS += -g -O0 -DDEBUG
+debug: $(TARGET)
+	@echo "🔧 调试版本构建完成"
+
+# 性能分析
+profile: CXXFLAGS += -pg -O2
+profile: $(TARGET)
+	@echo "📊 性能分析版本构建完成"
+	@echo "运行程序后使用: gprof $(TARGET) gmon.out > analysis.txt"

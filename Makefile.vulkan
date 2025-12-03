@@ -1,0 +1,135 @@
+# GPU音乐播放器 - 带Vulkan检测的简化版本 Makefile
+
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -O2 -pthread
+INCLUDES = -I./include -I./src
+
+# 检查系统是否支持Vulkan
+VULKAN_AVAILABLE := $(shell pkg-config --exists vulkan 2>/dev/null && echo yes || echo no)
+
+ifeq ($(VULKAN_AVAILABLE),yes)
+    VULKAN_CFLAGS := $(shell pkg-config --cflags vulkan 2>/dev/null)
+    VULKAN_LIBS := $(shell pkg-config --libs vulkan 2>/dev/null)
+    CXXFLAGS += $(VULKAN_CFLAGS) -DHAS_VULKAN
+    ENABLE_VULKAN = yes
+else
+    # 检查常见的Vulkan头文件位置
+    ifneq (,$(wildcard /usr/include/vulkan/vulkan.h))
+        ENABLE_VULKAN = yes
+        VULKAN_LIBS = -lvulkan
+    else ifneq (,$(wildcard /usr/local/include/vulkan/vulkan.h))
+        ENABLE_VULKAN = yes
+        INCLUDES += -I/usr/local/include
+        VULKAN_LIBS = -lvulkan
+    else
+        ENABLE_VULKAN = no
+    endif
+endif
+
+TARGET = gpu_player_vulkan
+VULKAN_DETECT_TARGET = vulkan_detect
+SOURCES = src/main_vulkan_demo.cpp
+VULKAN_DETECT_SOURCES = tools/vulkan_detect.cpp
+
+# 根据是否支持Vulkan选择源文件
+ifeq ($(ENABLE_VULKAN),yes)
+    VULKAN_SOURCES = src/gpu/VulkanProcessor.cpp
+    ALL_SOURCES = $(SOURCES) $(VULKAN_SOURCES)
+    VULKAN_ENABLED = yes
+else
+    ALL_SOURCES = $(SOURCES)
+    VULKAN_ENABLED = no
+    CXXFLAGS += -DNO_VULKAN_SUPPORT
+endif
+
+.PHONY: all clean run detect help vulkan-info
+
+# 默认目标
+all: check-vulkan $(TARGET)
+
+# 检查Vulkan支持
+check-vulkan:
+	@echo "=========================================="
+	@echo "检查Vulkan支持..."
+ifeq ($(VULKAN_ENABLED),yes)
+	@echo "✅ Vulkan支持已启用"
+	@echo "   编译标志: $(VULKAN_CFLAGS)"
+	@echo "   链接库: $(VULKAN_LIBS)"
+else
+	@echo "⚠️  Vulkan支持未启用"
+	@echo "   原因: 未找到Vulkan开发库"
+	@echo "   安装方法:"
+	@echo "   • Ubuntu/Debian: sudo apt install libvulkan-dev vulkan-tools"
+	@echo "   • 或者从 https://vulkan.lunarg.com/ 下载SDK"
+endif
+	@echo "=========================================="
+	@echo ""
+
+# 构建主程序
+$(TARGET): $(ALL_SOURCES)
+	@echo "构建GPU音乐播放器 (Vulkan版本)..."
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(ALL_SOURCES) -o $(TARGET) $(VULKAN_LIBS)
+	@echo "构建完成: $(TARGET)"
+
+# 构建Vulkan检测工具
+ifeq ($(VULKAN_ENABLED),yes)
+$(VULKAN_DETECT_TARGET): $(VULKAN_DETECT_SOURCES) $(VULKAN_SOURCES)
+	@echo "构建Vulkan检测工具..."
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(VULKAN_DETECT_SOURCES) $(VULKAN_SOURCES) -o $(VULKAN_DETECT_TARGET) $(VULKAN_LIBS)
+	@echo "构建完成: $(VULKAN_DETECT_TARGET)"
+
+detect: $(VULKAN_DETECT_TARGET)
+	@echo "运行Vulkan检测..."
+	./$(VULKAN_DETECT_TARGET)
+else
+detect:
+	@echo "❌ Vulkan支持未启用，无法构建检测工具"
+	@echo "请先安装Vulkan开发库"
+endif
+
+# 运行主程序
+run: $(TARGET)
+	@echo "运行GPU音乐播放器 (Vulkan版本)..."
+	./$(TARGET)
+
+# 显示Vulkan信息
+vulkan-info: detect
+
+# 清理
+clean:
+	@echo "清理构建文件..."
+	rm -f $(TARGET) $(VULKAN_DETECT_TARGET)
+	rm -rf build/
+	@echo "清理完成"
+
+# 完整构建（包含所有功能）
+full:
+	@echo "尝试完整构建..."
+	@mkdir -p build
+	@cd build && cmake .. -DENABLE_VULKAN=ON -DENABLE_CUDA=OFF -DBUILD_TESTS=OFF 2>/dev/null && make -j4 2>/dev/null || echo "完整构建失败 - 使用简化版本: make"
+
+# 帮助
+help:
+	@echo "GPU音乐播放器 - Vulkan版本构建系统"
+	@echo "=========================================="
+	@echo ""
+	@echo "可用目标:"
+	@echo "  make            - 构建带Vulkan支持的播放器"
+	@echo "  make detect     - 构建并运行Vulkan检测工具"
+	@echo "  make run        - 构建并运行播放器"
+	@echo "  make vulkan-info- 显示Vulkan支持信息"
+	@echo "  make clean      - 清理构建文件"
+	@echo "  make full       - 尝试完整CMake构建"
+	@echo "  make help       - 显示帮助"
+	@echo ""
+	@echo "当前状态:"
+ifeq ($(VULKAN_ENABLED),yes)
+	@echo "  ✅ Vulkan支持: 已启用"
+else
+	@echo "  ❌ Vulkan支持: 未启用"
+endif
+	@echo ""
+	@echo "使用示例:"
+	@echo "  make detect     # 检测Vulkan支持"
+	@echo "  make run        # 运行播放器"
+	@echo "  ./$(TARGET) --compare  # 性能对比测试"

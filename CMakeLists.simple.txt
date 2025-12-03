@@ -1,0 +1,79 @@
+cmake_minimum_required(VERSION 3.18)
+project(GPU_Player VERSION 1.0.0 LANGUAGES CXX)
+
+# C++标准
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# 构建类型
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+endif()
+
+# 输出目录
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
+# 包含目录
+include_directories(
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+# 查找线程库
+find_package(Threads REQUIRED)
+
+# 简化配置 - 禁用所有可选依赖
+option(ENABLE_CUDA "Enable CUDA support" OFF)
+option(ENABLE_OPENCL "Enable OpenCL support" OFF)
+option(ENABLE_VULKAN "Enable Vulkan support" ON)
+option(BUILD_TESTS "Build unit tests" OFF)
+option(BUILD_EXAMPLES "Build examples" OFF)
+
+# 平台检测
+if(WIN32)
+    set(PLATFORM_NAME "windows")
+    add_definitions(-DPLATFORM_WINDOWS)
+elseif(APPLE)
+    set(PLATFORM_NAME "macos")
+    add_definitions(-DPLATFORM_MACOS)
+elseif(UNIX)
+    set(PLATFORM_NAME "linux")
+    add_definitions(-DPLATFORM_LINUX)
+endif()
+
+# 源文件 - 只包含基础文件
+set(SOURCES
+    src/main.cpp
+    src/core/AudioEngine.cpp
+)
+
+set(HEADERS
+    include/AudioEngine.h
+    include/IGPUProcessor.h
+    include/IAudioDecoder.h
+    include/IAudioDevice.h
+)
+
+# 创建可执行文件 - 最小化版本
+add_executable(gpu_player_simple ${SOURCES} ${HEADERS})
+
+# 链接基础库
+target_link_libraries(gpu_player_simple 
+    ${CMAKE_THREAD_LIBS_INIT}
+)
+
+# 定义简化模式
+add_definitions(-DSIMPLE_BUILD)
+
+message(STATUS "=====================================")
+message(STATUS "GPU Player Simple Build Configuration:")
+message(STATUS "  Platform: ${PLATFORM_NAME}")
+message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "  CUDA Support: OFF")
+message(STATUS "  OpenCL Support: OFF")
+message(STATUS "  Vulkan Support: OFF")
+message(STATUS "  Note: This is a minimal build for demonstration")
+message(STATUS "=====================================")

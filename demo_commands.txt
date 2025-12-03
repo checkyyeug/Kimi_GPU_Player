@@ -1,0 +1,44 @@
+# GPU音乐播放器演示命令
+
+# 启动播放器
+./gpu_player_simple
+
+# 在播放器内部可以使用以下命令：
+
+play test.mp3          # 播放音频文件（可以是任意路径）
+pause                  # 暂停/继续播放
+stop                   # 停止播放
+seek 30                # 跳转到30秒位置
+stats                  # 显示播放统计信息
+quit                   # 退出程序
+
+# 示例会话：
+"""
+> play /home/user/music/song.mp3
+[AUDIO] 加载音频文件: /home/user/music/song.mp3
+[AUDIO] 文件加载成功 - 时长: 180.0 秒
+正在播放: /home/user/music/song.mp3
+
+> stats
+
+===== 播放统计 =====
+播放状态: 播放中
+播放位置: 15.2 / 180.0 秒
+进度: 8.4%
+模拟CPU使用率: 2.3%
+模拟内存使用: 45.2 MB
+===================
+
+> pause
+[AUDIO] 播放已暂停/继续
+
+> seek 60
+[AUDIO] 跳转到: 60 秒
+
+> stop
+[AUDIO] 播放停止
+
+> quit
+正在退出...
+GPU音乐播放器已退出
+"""
